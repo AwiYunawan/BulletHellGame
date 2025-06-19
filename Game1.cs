@@ -1,6 +1,8 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using System.IO;
+
 
 namespace BulletHellGame
 {
@@ -10,44 +12,42 @@ namespace BulletHellGame
         private SpriteBatch _spriteBatch;
 
         private Texture2D _playerTexture;
-        private Vector2 _playerPosition;
-        private float _speed = 200f;
+        private Vector2 _playerPosition = new Vector2(400, 500);
+        private float _playerSpeed = 300f;
 
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
-            Content.RootDirectory = "Content";
             IsMouseVisible = true;
-        }
-
-        protected override void Initialize()
-        {
-            _playerPosition = new Vector2(400, 500); // tengah bawah layar
-            base.Initialize();
         }
 
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
-            _playerTexture = Content.Load<Texture2D>("player"); // tambahkan file player.png di folder Content
+
+            // Load gambar dari Assets langsung tanpa pipeline
+            using (FileStream stream = new FileStream("Assets/player.png", FileMode.Open))
+            {
+                _playerTexture = Texture2D.FromStream(GraphicsDevice, stream);
+            }
         }
 
         protected override void Update(GameTime gameTime)
         {
-            KeyboardState state = Keyboard.GetState();
-            float delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
+            var keyboard = Keyboard.GetState();
+            float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-            if (state.IsKeyDown(Keys.Left)) _playerPosition.X -= _speed * delta;
-            if (state.IsKeyDown(Keys.Right)) _playerPosition.X += _speed * delta;
-            if (state.IsKeyDown(Keys.Up)) _playerPosition.Y -= _speed * delta;
-            if (state.IsKeyDown(Keys.Down)) _playerPosition.Y += _speed * delta;
+            if (keyboard.IsKeyDown(Keys.A)) _playerPosition.X -= _playerSpeed * dt;
+            if (keyboard.IsKeyDown(Keys.D)) _playerPosition.X += _playerSpeed * dt;
+            if (keyboard.IsKeyDown(Keys.W)) _playerPosition.Y -= _playerSpeed * dt;
+            if (keyboard.IsKeyDown(Keys.S)) _playerPosition.Y += _playerSpeed * dt;
 
             base.Update(gameTime);
         }
 
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.Black);
+            GraphicsDevice.Clear(Color.CornflowerBlue);
 
             _spriteBatch.Begin();
             _spriteBatch.Draw(_playerTexture, _playerPosition, Color.White);
