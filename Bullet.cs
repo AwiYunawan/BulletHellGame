@@ -6,13 +6,13 @@ namespace BulletHellGame
     public class Bullet
     {
         public Vector2 Position;
-        public float Speed = 500f;
+        private float Speed = 400f;
         private Texture2D _texture;
 
-        public Bullet(Texture2D texture, Vector2 startPos)
+        public Bullet(Texture2D texture, Vector2 position)
         {
             _texture = texture;
-            Position = startPos;
+            Position = position;
         }
 
         public void Update(GameTime gameTime)
@@ -23,12 +23,13 @@ namespace BulletHellGame
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            spriteBatch.Draw(_texture, Position, Color.White);
+            // Scale bullet to 50%
+            spriteBatch.Draw(_texture, Position, null, Color.White, 0f, Vector2.Zero, 0.3f, SpriteEffects.None, 0f);
         }
 
         public bool IsOffScreen(int screenHeight)
         {
-            return Position.Y + _texture.Height < 0;
+            return Position.Y + _texture.Height * 0.5f < 0;
         }
     }
 }
