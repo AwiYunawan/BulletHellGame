@@ -3,6 +3,8 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System.Collections.Generic;
 using System.IO;
+using System;
+
 
 namespace BulletHellGame
 {
@@ -19,6 +21,11 @@ namespace BulletHellGame
 
         private List<Bullet> _bullets = new List<Bullet>();
         private double _lastShotTime = 0;
+        private Texture2D _enemyTexture;
+        private List<Enemy> _enemies = new List<Enemy>();
+        private Random _random = new Random();
+        private double _lastSpawnTime = 0;
+
 
         public Game1()
         {
@@ -28,7 +35,7 @@ namespace BulletHellGame
 
         protected override void Initialize()
         {
-            _playerPosition = new Vector2(400, 500); // Posisi awal player
+            _playerPosition = new Vector2(400, 500); 
             base.Initialize();
         }
 
@@ -45,63 +52,100 @@ namespace BulletHellGame
             {
                 _bulletTexture = Texture2D.FromStream(GraphicsDevice, stream);
             }
+            using (var stream = new FileStream("Assets/enemy.png", FileMode.Open))
+            {
+                _enemyTexture = Texture2D.FromStream(GraphicsDevice, stream);
+            }
         }
 
         protected override void Update(GameTime gameTime)
-{
-    KeyboardState keyboard = Keyboard.GetState();
-    float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
-
-    // Player movement
-    if (keyboard.IsKeyDown(Keys.A) || keyboard.IsKeyDown(Keys.Left))
-        _playerPosition.X -= _playerSpeed * dt;
-    if (keyboard.IsKeyDown(Keys.D) || keyboard.IsKeyDown(Keys.Right))
-        _playerPosition.X += _playerSpeed * dt;
-    if (keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.Up))
-        _playerPosition.Y -= _playerSpeed * dt;
-    if (keyboard.IsKeyDown(Keys.S) || keyboard.IsKeyDown(Keys.Down))
-        _playerPosition.Y += _playerSpeed * dt;
-
-    // Auto-fire every 333ms (3x per detik)
-    if (gameTime.TotalGameTime.TotalMilliseconds - _lastShotTime > 333)
-    {
-        Vector2 bulletStart = new Vector2(
-            _playerPosition.X + (_playerTexture.Width * 0.5f * 0.5f) - (_bulletTexture.Width * 0.5f * 0.3f),
-            _playerPosition.Y - (_bulletTexture.Height * 0.3f)
-        );
-
-        _bullets.Add(new Bullet(_bulletTexture, bulletStart));
-        _lastShotTime = gameTime.TotalGameTime.TotalMilliseconds;
-    }
-
-    // Update bullets
-    for (int i = _bullets.Count - 1; i >= 0; i--)
-    {
-        _bullets[i].Update(gameTime);
-        if (_bullets[i].IsOffScreen(_graphics.PreferredBackBufferHeight))
         {
-            _bullets.RemoveAt(i);
-        }
-    }
+            KeyboardState keyboard = Keyboard.GetState();
+            float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-    base.Update(gameTime);
-}
+            
+            if (keyboard.IsKeyDown(Keys.A) || keyboard.IsKeyDown(Keys.Left))
+                _playerPosition.X -= _playerSpeed * dt;
+            if (keyboard.IsKeyDown(Keys.D) || keyboard.IsKeyDown(Keys.Right))
+                _playerPosition.X += _playerSpeed * dt;
+            if (keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.Up))
+                _playerPosition.Y -= _playerSpeed * dt;
+            if (keyboard.IsKeyDown(Keys.S) || keyboard.IsKeyDown(Keys.Down))
+                _playerPosition.Y += _playerSpeed * dt;
+
+            
+            if (gameTime.TotalGameTime.TotalMilliseconds - _lastShotTime > 200)
+            {
+                float playerScale = 0.15f;
+                float bulletScale = 0.01f;
+
+                Vector2 playerCenterTop = new Vector2(
+                    _playerPosition.X + (_playerTexture.Width * playerScale * 0.5f),
+                    _playerPosition.Y
+                );
+
+                float bulletOffsetY = _bulletTexture.Height * bulletScale;
+
+                Vector2 bulletStart = new Vector2(
+                    playerCenterTop.X - (_bulletTexture.Width * bulletScale * 0.5f),
+                    playerCenterTop.Y - bulletOffsetY
+                );
+
+                _bullets.Add(new Bullet(_bulletTexture, bulletStart)); 
+
+                _lastShotTime = gameTime.TotalGameTime.TotalMilliseconds;
+            }
+            
+            for (int i = _bullets.Count - 1; i >= 0; i--)
+            {
+                _bullets[i].Update(gameTime);
+                if (_bullets[i].IsOffScreen(_graphics.PreferredBackBufferHeight))
+                {
+                    _bullets.RemoveAt(i);
+                }
+            }
+
+            base.Update(gameTime);
+
+            
+            if (gameTime.TotalGameTime.TotalMilliseconds - _lastSpawnTime > 1000)
+            {
+                float x = _random.Next(0, _graphics.PreferredBackBufferWidth - (int)(_enemyTexture.Width * 0.5f));
+                Vector2 enemyStart = new Vector2(x, -_enemyTexture.Height);
+                _enemies.Add(new Enemy(_enemyTexture, enemyStart));
+                _lastSpawnTime = gameTime.TotalGameTime.TotalMilliseconds;
+            }
+
+            
+            for (int i = _enemies.Count - 1; i >= 0; i--)
+            {
+                _enemies[i].Update(gameTime);
+                if (_enemies[i].IsOffScreen(_graphics.PreferredBackBufferHeight))
+                {
+                    _enemies.RemoveAt(i);
+                }
+            }
+        }
 
 
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.Black); // Bersihkan layar dulu
+            GraphicsDevice.Clear(Color.Black);
 
             _spriteBatch.Begin();
 
-            // Gambar player (dengan scale 0.5 untuk perkecil ukuran)
-            _spriteBatch.Draw(_playerTexture, _playerPosition, null, Color.White, 0f, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
+            
+            _spriteBatch.Draw(_playerTexture, _playerPosition, null, Color.White, 0f, Vector2.Zero, 0.15f, SpriteEffects.None, 0f);
 
-            // Gambar semua bullet
+            
             foreach (var bullet in _bullets)
                 bullet.Draw(_spriteBatch);
 
-            _spriteBatch.End();
+            
+            foreach (var enemy in _enemies)
+                enemy.Draw(_spriteBatch);
+
+            _spriteBatch.End(); 
 
             base.Draw(gameTime);
         }
