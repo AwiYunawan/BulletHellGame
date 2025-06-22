@@ -15,6 +15,17 @@ namespace BulletHellGame
             Position = position;
         }
 
+        public Rectangle GetBounds(float scale = 0.1f)
+        {
+            return new Rectangle(
+                (int)Position.X,
+                (int)Position.Y,
+                (int)(_texture.Width * scale),
+                (int)(_texture.Height * scale)
+            );
+        }
+
+
         public void Update(GameTime gameTime)
         {
             float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BulletHellGame")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9abf6651efb71d58cd1b1f355f38faf82d71ec99")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+073834a7e31eaaa3ce91466a1bdc546c837193a6")]
 [assembly: System.Reflection.AssemblyProductAttribute("BulletHellGame")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BulletHellGame")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

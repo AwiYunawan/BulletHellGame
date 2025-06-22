@@ -25,6 +25,8 @@ namespace BulletHellGame
         private List<Enemy> _enemies = new List<Enemy>();
         private Random _random = new Random();
         private double _lastSpawnTime = 0;
+        private int _score = 0;
+        private SpriteFont _font;
 
 
         public Game1()
@@ -104,6 +106,24 @@ namespace BulletHellGame
                     _bullets.RemoveAt(i);
                 }
             }
+            for (int i = _bullets.Count - 1; i >= 0; i--)
+            {
+                var bulletBounds = _bullets[i].GetBounds();
+
+                for (int j = _enemies.Count - 1; j >= 0; j--)
+                {
+                    var enemyBounds = _enemies[j].GetBounds();
+
+                    if (bulletBounds.Intersects(enemyBounds))
+                    {
+                        _bullets.RemoveAt(i);
+                        _enemies.RemoveAt(j);
+                        _score += 10;
+                        break; // break inner loop
+                    }
+                }
+            }
+
 
             base.Update(gameTime);
 
@@ -137,7 +157,8 @@ namespace BulletHellGame
             
             _spriteBatch.Draw(_playerTexture, _playerPosition, null, Color.White, 0f, Vector2.Zero, 0.15f, SpriteEffects.None, 0f);
 
-            
+            _spriteBatch.DrawString(_font, $"Score: {_score}", new Vector2(10, 10), Color.White);
+
             foreach (var bullet in _bullets)
                 bullet.Draw(_spriteBatch);
 

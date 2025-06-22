@@ -30,3 +30,4 @@ E:\Programming\csharp\BulletHellGame\obj\Debug\net8.0\refint\BulletHellGame.dll
 E:\Programming\csharp\BulletHellGame\obj\Debug\net8.0\BulletHellGame.pdb
 E:\Programming\csharp\BulletHellGame\obj\Debug\net8.0\BulletHellGame.genruntimeconfig.cache
 E:\Programming\csharp\BulletHellGame\obj\Debug\net8.0\ref\BulletHellGame.dll
+E:\Programming\csharp\BulletHellGame\bin\Debug\net8.0\Content\score.xnb
