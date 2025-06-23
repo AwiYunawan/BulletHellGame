@@ -40,9 +40,11 @@ namespace BulletHellGame
             _playerPosition = new Vector2(400, 500); 
             base.Initialize();
         }
-
+        
         protected override void LoadContent()
         {
+            Content.RootDirectory = "Content/bin/DesktopGL/Content";
+            _font = Content.Load<SpriteFont>("score");
             _spriteBatch = new SpriteBatch(GraphicsDevice);
 
             using (var stream = new FileStream("Assets/player.png", FileMode.Open))
