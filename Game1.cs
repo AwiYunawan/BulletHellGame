@@ -28,6 +28,11 @@ namespace BulletHellGame
         private int _score = 0;
         private SpriteFont _font;
 
+        private Texture2D _enemyBulletTexture;
+        private List<EnemyBullet> _enemyBullets = new List<EnemyBullet>();
+        private double _lastEnemyShotTime = 0;
+
+
 
         public Game1()
         {
@@ -40,7 +45,7 @@ namespace BulletHellGame
             _playerPosition = new Vector2(400, 500); 
             base.Initialize();
         }
-        
+
         protected override void LoadContent()
         {
             Content.RootDirectory = "Content/bin/DesktopGL/Content";
@@ -60,6 +65,11 @@ namespace BulletHellGame
             {
                 _enemyTexture = Texture2D.FromStream(GraphicsDevice, stream);
             }
+            using (var stream = new FileStream("Assets/bullet.png", FileMode.Open))
+            {
+                _enemyBulletTexture = Texture2D.FromStream(GraphicsDevice, stream);
+            }
+
         }
 
         protected override void Update(GameTime gameTime)
@@ -67,7 +77,7 @@ namespace BulletHellGame
             KeyboardState keyboard = Keyboard.GetState();
             float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-            
+
             if (keyboard.IsKeyDown(Keys.A) || keyboard.IsKeyDown(Keys.Left))
                 _playerPosition.X -= _playerSpeed * dt;
             if (keyboard.IsKeyDown(Keys.D) || keyboard.IsKeyDown(Keys.Right))
@@ -77,7 +87,7 @@ namespace BulletHellGame
             if (keyboard.IsKeyDown(Keys.S) || keyboard.IsKeyDown(Keys.Down))
                 _playerPosition.Y += _playerSpeed * dt;
 
-            
+
             if (gameTime.TotalGameTime.TotalMilliseconds - _lastShotTime > 200)
             {
                 float playerScale = 0.15f;
@@ -95,11 +105,11 @@ namespace BulletHellGame
                     playerCenterTop.Y - bulletOffsetY
                 );
 
-                _bullets.Add(new Bullet(_bulletTexture, bulletStart)); 
+                _bullets.Add(new Bullet(_bulletTexture, bulletStart));
 
                 _lastShotTime = gameTime.TotalGameTime.TotalMilliseconds;
             }
-            
+
             for (int i = _bullets.Count - 1; i >= 0; i--)
             {
                 _bullets[i].Update(gameTime);
@@ -125,11 +135,7 @@ namespace BulletHellGame
                     }
                 }
             }
-
-
             base.Update(gameTime);
-
-            
             if (gameTime.TotalGameTime.TotalMilliseconds - _lastSpawnTime > 1000)
             {
                 float x = _random.Next(0, _graphics.PreferredBackBufferWidth - (int)(_enemyTexture.Width * 0.5f));
@@ -138,7 +144,30 @@ namespace BulletHellGame
                 _lastSpawnTime = gameTime.TotalGameTime.TotalMilliseconds;
             }
 
-            
+            // Musuh menembak setiap 1 detik
+            if (gameTime.TotalGameTime.TotalMilliseconds - _lastEnemyShotTime > 1000)
+            {
+                foreach (var enemy in _enemies)
+                {
+                    Vector2 bulletPos = new Vector2(
+                        enemy.Position.X + (_enemyTexture.Width * 0.25f), // tengah enemy (karena scale 0.5)
+                        enemy.Position.Y + (_enemyTexture.Height * 0.5f)
+                    );
+
+                    _enemyBullets.Add(new EnemyBullet(_enemyBulletTexture, bulletPos));
+                }
+
+                _lastEnemyShotTime = gameTime.TotalGameTime.TotalMilliseconds;
+            }
+            // Update enemy bullets
+            for (int i = _enemyBullets.Count - 1; i >= 0; i--)
+            {
+                _enemyBullets[i].Update(gameTime);
+                if (_enemyBullets[i].IsOffScreen(_graphics.PreferredBackBufferHeight))
+                {
+                    _enemyBullets.RemoveAt(i);
+                }
+            }
             for (int i = _enemies.Count - 1; i >= 0; i--)
             {
                 _enemies[i].Update(gameTime);
@@ -147,6 +176,11 @@ namespace BulletHellGame
                     _enemies.RemoveAt(i);
                 }
             }
+
+            
+
+
+
         }
 
 
@@ -168,7 +202,13 @@ namespace BulletHellGame
             foreach (var enemy in _enemies)
                 enemy.Draw(_spriteBatch);
 
+            // Gambar semua peluru musuh
+            foreach (var ebullet in _enemyBullets)
+                ebullet.Draw(_spriteBatch);
+
             _spriteBatch.End(); 
+
+            
 
             base.Draw(gameTime);
         }
