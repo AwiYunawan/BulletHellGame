@@ -31,6 +31,9 @@ namespace BulletHellGame
         private Texture2D _enemyBulletTexture;
         private List<EnemyBullet> _enemyBullets = new List<EnemyBullet>();
         private double _lastEnemyShotTime = 0;
+        private int _playerLives = 3;
+        private bool _isGameOver = false;
+
 
 
 
@@ -74,6 +77,9 @@ namespace BulletHellGame
 
         protected override void Update(GameTime gameTime)
         {
+            if (_isGameOver)
+                return;
+
             KeyboardState keyboard = Keyboard.GetState();
             float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
@@ -86,6 +92,17 @@ namespace BulletHellGame
                 _playerPosition.Y -= _playerSpeed * dt;
             if (keyboard.IsKeyDown(Keys.S) || keyboard.IsKeyDown(Keys.Down))
                 _playerPosition.Y += _playerSpeed * dt;
+            if (_isGameOver && Keyboard.GetState().IsKeyDown(Keys.R))
+            {
+                _playerLives = 3;
+                _isGameOver = false;
+                _bullets.Clear();
+                _enemyBullets.Clear();
+                _enemies.Clear();
+                _score = 0;
+                Console.WriteLine("Game Restarted!");
+            }
+
 
 
             if (gameTime.TotalGameTime.TotalMilliseconds - _lastShotTime > 200)
@@ -176,6 +193,35 @@ namespace BulletHellGame
                     _enemies.RemoveAt(i);
                 }
             }
+            if (!_isGameOver)
+            {
+                Rectangle playerBounds = new Rectangle(
+                    (int)_playerPosition.X,
+                    (int)_playerPosition.Y,
+                    (int)(_playerTexture.Width * 0.15f),
+                    (int)(_playerTexture.Height * 0.15f)
+                );
+
+                for (int i = _enemyBullets.Count - 1; i >= 0; i--)
+                {
+                    var bulletBounds = _enemyBullets[i].GetBounds();
+
+                    if (bulletBounds.Intersects(playerBounds))
+                    {
+                        _enemyBullets.RemoveAt(i);
+                        _playerLives--;
+
+                        Console.WriteLine($"Player hit! Lives remaining: {_playerLives}");
+
+                        if (_playerLives <= 0)
+                        {
+                            _isGameOver = true;
+                            Console.WriteLine("GAME OVER!");
+                        }
+                    }
+                }
+            }
+
 
             
 
@@ -205,6 +251,22 @@ namespace BulletHellGame
             // Gambar semua peluru musuh
             foreach (var ebullet in _enemyBullets)
                 ebullet.Draw(_spriteBatch);
+
+            // Tampilkan nyawa
+            string livesText = $"Lives: {_playerLives}";
+            _spriteBatch.DrawString(_font, livesText, new Vector2(10, 40), Color.Red);
+            if (_isGameOver)
+            {
+                string gameOverText = "GAME OVER";
+                Vector2 textSize = _font.MeasureString(gameOverText);
+                Vector2 position = new Vector2(
+                    (_graphics.PreferredBackBufferWidth - textSize.X) / 2,
+                    (_graphics.PreferredBackBufferHeight - textSize.Y) / 2
+                );
+
+                _spriteBatch.DrawString(_font, gameOverText, position, Color.Yellow);
+            }
+
 
             _spriteBatch.End(); 
 
