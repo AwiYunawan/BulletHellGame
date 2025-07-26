@@ -49,6 +49,12 @@ namespace BulletHellGame
             base.Initialize();
         }
 
+        private Enemy.EnemyFireType GetRandomFireType()
+        {
+            var values = Enum.GetValues(typeof(Enemy.EnemyFireType));
+            return (Enemy.EnemyFireType)values.GetValue(_random.Next(values.Length));
+        }
+
         protected override void LoadContent()
         {
             Content.RootDirectory = "Content/bin/DesktopGL/Content";
@@ -157,7 +163,9 @@ namespace BulletHellGame
             {
                 float x = _random.Next(0, _graphics.PreferredBackBufferWidth - (int)(_enemyTexture.Width * 0.5f));
                 Vector2 enemyStart = new Vector2(x, -_enemyTexture.Height);
-                _enemies.Add(new Enemy(_enemyTexture, enemyStart));
+                var enemy = new Enemy(_enemyTexture, enemyStart);
+                enemy.FireType = GetRandomFireType();
+                _enemies.Add(enemy);
                 _lastSpawnTime = gameTime.TotalGameTime.TotalMilliseconds;
             }
 
@@ -171,7 +179,34 @@ namespace BulletHellGame
                         enemy.Position.Y + (_enemyTexture.Height * 0.5f)
                     );
 
-                    _enemyBullets.Add(new EnemyBullet(_enemyBulletTexture, bulletPos));
+                    switch (enemy.FireType)
+                    {
+                        case Enemy.EnemyFireType.Straight:
+                            _enemyBullets.Add(new EnemyBullet(_enemyBulletTexture, bulletPos, new Vector2(0, 1)));
+                            break;
+                        case Enemy.EnemyFireType.Aimed:
+                            Vector2 playerCenter = new Vector2(
+                                _playerPosition.X + (_playerTexture.Width * 0.15f * 0.5f),
+                                _playerPosition.Y + (_playerTexture.Height * 0.15f * 0.5f)
+                            );
+                            Vector2 aimDir = playerCenter - bulletPos;
+                            _enemyBullets.Add(new EnemyBullet(_enemyBulletTexture, bulletPos, aimDir));
+                            break;
+                        case Enemy.EnemyFireType.Spread:
+                            int spreadCount = 5;
+                            float spreadAngle = MathF.PI / 4; // 45 derajat total
+                            float baseAngle = MathF.PI / 2; // ke bawah
+                            for (int i = 0; i < spreadCount; i++)
+                            {
+                                float angle = baseAngle - spreadAngle / 2 + (spreadAngle / (spreadCount - 1)) * i;
+                                Vector2 dir = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+                                _enemyBullets.Add(new EnemyBullet(_enemyBulletTexture, bulletPos, dir));
+                            }
+                            break;
+                        default:
+                            _enemyBullets.Add(new EnemyBullet(_enemyBulletTexture, bulletPos, new Vector2(0, 1)));
+                            break;
+                    }
                 }
 
                 _lastEnemyShotTime = gameTime.TotalGameTime.TotalMilliseconds;
@@ -180,7 +215,7 @@ namespace BulletHellGame
             for (int i = _enemyBullets.Count - 1; i >= 0; i--)
             {
                 _enemyBullets[i].Update(gameTime);
-                if (_enemyBullets[i].IsOffScreen(_graphics.PreferredBackBufferHeight))
+                if (_enemyBullets[i].IsOffScreen(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight))
                 {
                     _enemyBullets.RemoveAt(i);
                 }

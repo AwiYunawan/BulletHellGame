@@ -8,6 +8,17 @@ namespace BulletHellGame
         public Vector2 Position;
         private float Speed = 100f;
         private Texture2D _texture;
+        public enum EnemyFireType
+        {
+            Straight,
+            Aimed,
+            Spread,
+            Burst,
+            Circular
+        }
+        public EnemyFireType FireType;
+
+
 
         public Enemy(Texture2D texture, Vector2 position)
         {
@@ -15,7 +26,7 @@ namespace BulletHellGame
             Position = position;
         }
 
-        public Rectangle GetBounds(float scale = 0.5f)
+        public Rectangle GetBounds(float scale = 0.2f)
         {
             return new Rectangle(
                 (int)Position.X,
