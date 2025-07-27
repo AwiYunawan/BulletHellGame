@@ -1,5 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using System;
+using System.Collections.Generic;
 
 namespace BulletHellGame
 {
@@ -17,13 +19,14 @@ namespace BulletHellGame
             Circular
         }
         public EnemyFireType FireType;
+        private double fireTimer;
+        private double fireInterval = 1.5;
 
-
-
-        public Enemy(Texture2D texture, Vector2 position)
+        public Enemy(Texture2D texture, Vector2 position, EnemyFireType fireType)
         {
             _texture = texture;
             Position = position;
+            this.FireType = fireType;
         }
 
         public Rectangle GetBounds(float scale = 0.2f)
@@ -50,6 +53,51 @@ namespace BulletHellGame
         public bool IsOffScreen(int screenHeight)
         {
             return Position.Y > screenHeight;
+        }
+
+        public List<EnemyBullet> Fire(Vector2 playerPosition, Texture2D bulletTexture)
+        {
+            List<EnemyBullet> bullets = new();
+
+            switch (FireType)
+            {
+                case EnemyFireType.Straight:
+                    bullets.Add(new EnemyBullet(bulletTexture, Position, Vector2.UnitY));
+                    break;
+
+                case EnemyFireType.Aimed:
+                    Vector2 direction = playerPosition - Position;
+                    bullets.Add(new EnemyBullet(bulletTexture, Position, direction));
+                    break;
+
+                case EnemyFireType.Spread:
+                    float[] angles = { -0.3f, 0f, 0.3f };
+                    foreach (float angle in angles)
+                    {
+                        Vector2 spreadDir = new Vector2((float)Math.Sin(angle), 1f);
+                        bullets.Add(new EnemyBullet(bulletTexture, Position, spreadDir));
+                    }
+                    break;
+
+                case EnemyFireType.Burst:
+                    for (int i = -1; i <= 1; i++)
+                    {
+                        bullets.Add(new EnemyBullet(bulletTexture, Position, new Vector2(i * 0.3f, 1f)));
+                    }
+                    break;
+
+                case EnemyFireType.Circular:
+                    int bulletCount = 8;
+                    for (int i = 0; i < bulletCount; i++)
+                    {
+                        float angle = MathHelper.TwoPi * i / bulletCount;
+                        Vector2 dir = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
+                        bullets.Add(new EnemyBullet(bulletTexture, Position, dir));
+                    }
+                    break;
+            }
+
+            return bullets;
         }
     }
 }

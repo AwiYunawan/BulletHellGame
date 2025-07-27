@@ -33,6 +33,13 @@ namespace BulletHellGame
         private double _lastEnemyShotTime = 0;
         private int _playerLives = 3;
         private bool _isGameOver = false;
+        
+        // Boss properties
+        private Texture2D _bossTexture;
+        private Boss _boss;
+        private Texture2D _hpBarTexture;
+        private List<EnemyBullet> _bossBullets = new List<EnemyBullet>();
+        private bool _bossSpawned = false;
 
 
 
@@ -78,6 +85,16 @@ namespace BulletHellGame
             {
                 _enemyBulletTexture = Texture2D.FromStream(GraphicsDevice, stream);
             }
+            
+            // Load boss texture (using enemy texture for now)
+            using (var stream = new FileStream("Assets/enemy.png", FileMode.Open))
+            {
+                _bossTexture = Texture2D.FromStream(GraphicsDevice, stream);
+            }
+            
+            // Create HP bar texture
+            _hpBarTexture = new Texture2D(GraphicsDevice, 1, 1);
+            _hpBarTexture.SetData(new[] { Color.White });
 
         }
 
@@ -104,7 +121,10 @@ namespace BulletHellGame
                 _isGameOver = false;
                 _bullets.Clear();
                 _enemyBullets.Clear();
+                _bossBullets.Clear();
                 _enemies.Clear();
+                _boss = null;
+                _bossSpawned = false;
                 _score = 0;
                 Console.WriteLine("Game Restarted!");
             }
@@ -163,54 +183,60 @@ namespace BulletHellGame
             {
                 float x = _random.Next(0, _graphics.PreferredBackBufferWidth - (int)(_enemyTexture.Width * 0.5f));
                 Vector2 enemyStart = new Vector2(x, -_enemyTexture.Height);
-                var enemy = new Enemy(_enemyTexture, enemyStart);
-                enemy.FireType = GetRandomFireType();
+                var enemy = new Enemy(_enemyTexture, enemyStart, GetRandomFireType());
                 _enemies.Add(enemy);
                 _lastSpawnTime = gameTime.TotalGameTime.TotalMilliseconds;
             }
-
-            // Musuh menembak setiap 1 detik
-            if (gameTime.TotalGameTime.TotalMilliseconds - _lastEnemyShotTime > 1000)
+            
+            // Boss spawning logic
+            if (!_bossSpawned && _score >= 30)
             {
-                foreach (var enemy in _enemies)
-                {
-                    Vector2 bulletPos = new Vector2(
-                        enemy.Position.X + (_enemyTexture.Width * 0.25f), // tengah enemy (karena scale 0.5)
-                        enemy.Position.Y + (_enemyTexture.Height * 0.5f)
-                    );
+                _boss = new Boss(_bossTexture, new Vector2(200, 50));
+                _bossSpawned = true;
+            }
 
-                    switch (enemy.FireType)
+            // Update enemies and handle firing
+            foreach (var enemy in _enemies)
+            {
+                enemy.Update(gameTime);
+
+                // Handle enemy firing
+                if (gameTime.TotalGameTime.TotalSeconds - _lastEnemyShotTime > 1.5)
+                {
+                    var bullets = enemy.Fire(_playerPosition, _enemyBulletTexture);
+                    _enemyBullets.AddRange(bullets);
+                }
+            }
+            
+            // Reset fire timer
+            if (gameTime.TotalGameTime.TotalSeconds - _lastEnemyShotTime > 1.5)
+            {
+                _lastEnemyShotTime = gameTime.TotalGameTime.TotalSeconds;
+            }
+            
+            // Update boss
+            if (_boss != null && !_boss.IsDead)
+            {
+                _boss.Update(gameTime, pos => _bossBullets.Add(new EnemyBullet(_enemyBulletTexture, pos, Vector2.UnitY)));
+                
+                // Check bullet collision with boss
+                for (int i = _bullets.Count - 1; i >= 0; i--)
+                {
+                    var bulletBounds = _bullets[i].GetBounds();
+                    if (bulletBounds.Intersects(_boss.GetBounds()))
                     {
-                        case Enemy.EnemyFireType.Straight:
-                            _enemyBullets.Add(new EnemyBullet(_enemyBulletTexture, bulletPos, new Vector2(0, 1)));
-                            break;
-                        case Enemy.EnemyFireType.Aimed:
-                            Vector2 playerCenter = new Vector2(
-                                _playerPosition.X + (_playerTexture.Width * 0.15f * 0.5f),
-                                _playerPosition.Y + (_playerTexture.Height * 0.15f * 0.5f)
-                            );
-                            Vector2 aimDir = playerCenter - bulletPos;
-                            _enemyBullets.Add(new EnemyBullet(_enemyBulletTexture, bulletPos, aimDir));
-                            break;
-                        case Enemy.EnemyFireType.Spread:
-                            int spreadCount = 5;
-                            float spreadAngle = MathF.PI / 4; // 45 derajat total
-                            float baseAngle = MathF.PI / 2; // ke bawah
-                            for (int i = 0; i < spreadCount; i++)
-                            {
-                                float angle = baseAngle - spreadAngle / 2 + (spreadAngle / (spreadCount - 1)) * i;
-                                Vector2 dir = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
-                                _enemyBullets.Add(new EnemyBullet(_enemyBulletTexture, bulletPos, dir));
-                            }
-                            break;
-                        default:
-                            _enemyBullets.Add(new EnemyBullet(_enemyBulletTexture, bulletPos, new Vector2(0, 1)));
-                            break;
+                        _boss.TakeDamage();
+                        _bullets.RemoveAt(i);
+                        _score += 5;
+                        
+                        if (_boss.IsDead)
+                        {
+                            _score += 50; // Bonus for defeating boss
+                        }
                     }
                 }
-
-                _lastEnemyShotTime = gameTime.TotalGameTime.TotalMilliseconds;
             }
+            
             // Update enemy bullets
             for (int i = _enemyBullets.Count - 1; i >= 0; i--)
             {
@@ -220,9 +246,19 @@ namespace BulletHellGame
                     _enemyBullets.RemoveAt(i);
                 }
             }
+            
+            // Update boss bullets
+            for (int i = _bossBullets.Count - 1; i >= 0; i--)
+            {
+                _bossBullets[i].Update(gameTime);
+                if (_bossBullets[i].IsOffScreen(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight))
+                {
+                    _bossBullets.RemoveAt(i);
+                }
+            }
+            // Remove enemies that are off screen
             for (int i = _enemies.Count - 1; i >= 0; i--)
             {
-                _enemies[i].Update(gameTime);
                 if (_enemies[i].IsOffScreen(_graphics.PreferredBackBufferHeight))
                 {
                     _enemies.RemoveAt(i);
@@ -247,6 +283,26 @@ namespace BulletHellGame
                         _playerLives--;
 
                         Console.WriteLine($"Player hit! Lives remaining: {_playerLives}");
+
+                        if (_playerLives <= 0)
+                        {
+                            _isGameOver = true;
+                            Console.WriteLine("GAME OVER!");
+                        }
+                    }
+                }
+                
+                // Check boss bullet collision with player
+                for (int i = _bossBullets.Count - 1; i >= 0; i--)
+                {
+                    var bulletBounds = _bossBullets[i].GetBounds();
+
+                    if (bulletBounds.Intersects(playerBounds))
+                    {
+                        _bossBullets.RemoveAt(i);
+                        _playerLives--;
+
+                        Console.WriteLine($"Player hit by boss! Lives remaining: {_playerLives}");
 
                         if (_playerLives <= 0)
                         {
@@ -286,6 +342,16 @@ namespace BulletHellGame
             // Gambar semua peluru musuh
             foreach (var ebullet in _enemyBullets)
                 ebullet.Draw(_spriteBatch);
+                
+            // Draw boss and boss bullets
+            if (_boss != null && !_boss.IsDead)
+            {
+                _boss.Draw(_spriteBatch);
+                _boss.DrawHPBar(_spriteBatch, _hpBarTexture, _font, _graphics.PreferredBackBufferWidth);
+            }
+            
+            foreach (var bbullet in _bossBullets)
+                bbullet.Draw(_spriteBatch);
 
             // Tampilkan nyawa
             string livesText = $"Lives: {_playerLives}";
