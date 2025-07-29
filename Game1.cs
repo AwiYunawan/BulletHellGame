@@ -23,6 +23,7 @@ namespace BulletHellGame
         private double _lastShotTime = 0;
         private Texture2D _enemyTexture;
         private List<Enemy> _enemies = new List<Enemy>();
+        public List<Enemy> Enemies => _enemies;
         private Random _random = new Random();
         private double _lastSpawnTime = 0;
         private int _score = 0;
@@ -37,9 +38,13 @@ namespace BulletHellGame
         // Boss properties
         private Texture2D _bossTexture;
         private Boss _boss;
+        public Boss Boss => _boss;
         private Texture2D _hpBarTexture;
         private List<EnemyBullet> _bossBullets = new List<EnemyBullet>();
         private bool _bossSpawned = false;
+        
+        // Wave Manager
+        private WaveManager _waveManager;
 
 
 
@@ -53,6 +58,7 @@ namespace BulletHellGame
         protected override void Initialize()
         {
             _playerPosition = new Vector2(400, 500); 
+            _waveManager = new WaveManager(this);
             base.Initialize();
         }
 
@@ -60,6 +66,20 @@ namespace BulletHellGame
         {
             var values = Enum.GetValues(typeof(Enemy.EnemyFireType));
             return (Enemy.EnemyFireType)values.GetValue(_random.Next(values.Length));
+        }
+        
+        public void SpawnEnemy(int wave)
+        {
+            var rand = new Random();
+            var position = new Vector2(rand.Next(0, _graphics.PreferredBackBufferWidth - 40), -40);
+            _enemies.Add(new Enemy(_enemyTexture, position, GetRandomFireType()));
+        }
+
+        public void SpawnBoss()
+        {
+            var bossPos = new Vector2(_graphics.PreferredBackBufferWidth / 2 - _bossTexture.Width / 2, -_bossTexture.Height);
+            _boss = new Boss(_bossTexture, bossPos);
+            _bossSpawned = true;
         }
 
         protected override void LoadContent()
@@ -126,6 +146,7 @@ namespace BulletHellGame
                 _boss = null;
                 _bossSpawned = false;
                 _score = 0;
+                _waveManager.Reset();
                 Console.WriteLine("Game Restarted!");
             }
 
@@ -179,21 +200,9 @@ namespace BulletHellGame
                 }
             }
             base.Update(gameTime);
-            if (gameTime.TotalGameTime.TotalMilliseconds - _lastSpawnTime > 1000)
-            {
-                float x = _random.Next(0, _graphics.PreferredBackBufferWidth - (int)(_enemyTexture.Width * 0.5f));
-                Vector2 enemyStart = new Vector2(x, -_enemyTexture.Height);
-                var enemy = new Enemy(_enemyTexture, enemyStart, GetRandomFireType());
-                _enemies.Add(enemy);
-                _lastSpawnTime = gameTime.TotalGameTime.TotalMilliseconds;
-            }
             
-            // Boss spawning logic
-            if (!_bossSpawned && _score >= 30)
-            {
-                _boss = new Boss(_bossTexture, new Vector2(200, 50));
-                _bossSpawned = true;
-            }
+            // Update Wave Manager
+            _waveManager.Update(gameTime);
 
             // Update enemies and handle firing
             foreach (var enemy in _enemies)
@@ -331,6 +340,7 @@ namespace BulletHellGame
             _spriteBatch.Draw(_playerTexture, _playerPosition, null, Color.White, 0f, Vector2.Zero, 0.15f, SpriteEffects.None, 0f);
 
             _spriteBatch.DrawString(_font, $"Score: {_score}", new Vector2(10, 10), Color.White);
+            _spriteBatch.DrawString(_font, $"Wave: {_waveManager.CurrentWave}", new Vector2(10, 70), Color.Yellow);
 
             foreach (var bullet in _bullets)
                 bullet.Draw(_spriteBatch);
