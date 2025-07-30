@@ -12,6 +12,7 @@ namespace BulletHellGame
         private int currentWave = 0;
         public int CurrentWave => currentWave;
         private bool waveInProgress = false;
+        public bool IsWaveInProgress => waveInProgress;
 
         private Game1 _game;
 
@@ -51,6 +52,11 @@ namespace BulletHellGame
         private void StartWave(int waveNumber)
         {
             Console.WriteLine($"Wave {waveNumber} started!");
+        }
+        
+        public void StartNextWave()
+        {
+            waveInProgress = false;
         }
 
         private int enemiesToSpawn = 0;

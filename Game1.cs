@@ -45,6 +45,17 @@ namespace BulletHellGame
         
         // Wave Manager
         private WaveManager _waveManager;
+        
+        // Wave delay system
+        private bool _waveCleared = false;
+        private float _waveTimer = 0f;
+        private float _waveDelay = 3f; // 3 seconds delay between waves
+        
+        // Boss visual effects
+        private bool _bossAppearing = false;
+        private float _bossFlashTimer = 0f;
+        private float _bossFlashDuration = 1.5f;
+        private Texture2D _pixelTexture;
 
 
 
@@ -80,6 +91,10 @@ namespace BulletHellGame
             var bossPos = new Vector2(_graphics.PreferredBackBufferWidth / 2 - _bossTexture.Width / 2, -_bossTexture.Height);
             _boss = new Boss(_bossTexture, bossPos);
             _bossSpawned = true;
+            
+            // Trigger boss visual effect
+            _bossAppearing = true;
+            _bossFlashTimer = 0f;
         }
 
         protected override void LoadContent()
@@ -115,6 +130,10 @@ namespace BulletHellGame
             // Create HP bar texture
             _hpBarTexture = new Texture2D(GraphicsDevice, 1, 1);
             _hpBarTexture.SetData(new[] { Color.White });
+            
+            // Create pixel texture for boss visual effects
+            _pixelTexture = new Texture2D(GraphicsDevice, 1, 1);
+            _pixelTexture.SetData(new[] { Color.White });
 
         }
 
@@ -147,6 +166,15 @@ namespace BulletHellGame
                 _bossSpawned = false;
                 _score = 0;
                 _waveManager.Reset();
+                
+                // Reset wave delay system
+                _waveCleared = false;
+                _waveTimer = 0f;
+                
+                // Reset boss visual effects
+                _bossAppearing = false;
+                _bossFlashTimer = 0f;
+                
                 Console.WriteLine("Game Restarted!");
             }
 
@@ -203,6 +231,33 @@ namespace BulletHellGame
             
             // Update Wave Manager
             _waveManager.Update(gameTime);
+            
+            // Wave delay system
+            if (_enemies.Count == 0 && _boss == null && !_waveCleared && _waveManager.IsWaveInProgress)
+            {
+                _waveCleared = true;
+                _waveTimer = 0f;
+            }
+            
+            if (_waveCleared)
+            {
+                _waveTimer += (float)gameTime.ElapsedGameTime.TotalSeconds;
+                if (_waveTimer >= _waveDelay)
+                {
+                    _waveManager.StartNextWave();
+                    _waveCleared = false;
+                }
+            }
+            
+            // Boss visual effect update
+            if (_bossAppearing)
+            {
+                _bossFlashTimer += (float)gameTime.ElapsedGameTime.TotalSeconds;
+                if (_bossFlashTimer >= _bossFlashDuration)
+                {
+                    _bossAppearing = false;
+                }
+            }
 
             // Update enemies and handle firing
             foreach (var enemy in _enemies)
@@ -335,12 +390,44 @@ namespace BulletHellGame
             GraphicsDevice.Clear(Color.Black);
 
             _spriteBatch.Begin();
+            
+            // Boss visual effect - red flash overlay
+            if (_bossAppearing)
+            {
+                var flashColor = new Color(Color.Red, 0.5f); // semi-transparent red
+                _spriteBatch.Draw(_pixelTexture, new Rectangle(0, 0, _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight), flashColor);
+                
+                // Show "BOSS APPEARING!" message
+                string bossText = "BOSS APPEARING!";
+                Vector2 textSize = _font.MeasureString(bossText);
+                Vector2 position = new Vector2(
+                    (_graphics.PreferredBackBufferWidth - textSize.X) / 2,
+                    (_graphics.PreferredBackBufferHeight - textSize.Y) / 2
+                );
+                _spriteBatch.DrawString(_font, bossText, position, Color.Red);
+            }
 
             
             _spriteBatch.Draw(_playerTexture, _playerPosition, null, Color.White, 0f, Vector2.Zero, 0.15f, SpriteEffects.None, 0f);
 
             _spriteBatch.DrawString(_font, $"Score: {_score}", new Vector2(10, 10), Color.White);
             _spriteBatch.DrawString(_font, $"Wave: {_waveManager.CurrentWave}", new Vector2(10, 70), Color.Yellow);
+            
+            // Show wave countdown when wave is cleared
+            if (_waveCleared)
+            {
+                float remainingTime = _waveDelay - _waveTimer;
+                _spriteBatch.DrawString(_font, $"Next Wave in: {remainingTime:F1}s", new Vector2(10, 100), Color.Orange);
+                
+                // Show "WAVE CLEARED!" message
+                string waveClearedText = "WAVE CLEARED!";
+                Vector2 textSize = _font.MeasureString(waveClearedText);
+                Vector2 position = new Vector2(
+                    (_graphics.PreferredBackBufferWidth - textSize.X) / 2,
+                    (_graphics.PreferredBackBufferHeight - textSize.Y) / 2 - 50
+                );
+                _spriteBatch.DrawString(_font, waveClearedText, position, Color.Green);
+            }
 
             foreach (var bullet in _bullets)
                 bullet.Draw(_spriteBatch);
