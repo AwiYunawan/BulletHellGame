@@ -10,6 +10,13 @@ namespace BulletHellGame
 {
     public class Game1 : Game
     {
+        // Game State enum
+        enum GameState
+        {
+            Playing,
+            GameOver
+        }
+
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
 
@@ -33,7 +40,9 @@ namespace BulletHellGame
         private List<EnemyBullet> _enemyBullets = new List<EnemyBullet>();
         private double _lastEnemyShotTime = 0;
         private int _playerLives = 3;
-        private bool _isGameOver = false;
+        
+        // Game State
+        private GameState _gameState = GameState.Playing;
         
         // Boss properties
         private Texture2D _bossTexture;
@@ -139,8 +148,14 @@ namespace BulletHellGame
 
         protected override void Update(GameTime gameTime)
         {
-            if (_isGameOver)
+            if (_gameState == GameState.GameOver)
+            {
+                if (Keyboard.GetState().IsKeyDown(Keys.R))
+                {
+                    RestartGame();
+                }
                 return;
+            }
 
             KeyboardState keyboard = Keyboard.GetState();
             float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
@@ -154,30 +169,6 @@ namespace BulletHellGame
                 _playerPosition.Y -= _playerSpeed * dt;
             if (keyboard.IsKeyDown(Keys.S) || keyboard.IsKeyDown(Keys.Down))
                 _playerPosition.Y += _playerSpeed * dt;
-            if (_isGameOver && Keyboard.GetState().IsKeyDown(Keys.R))
-            {
-                _playerLives = 3;
-                _isGameOver = false;
-                _bullets.Clear();
-                _enemyBullets.Clear();
-                _bossBullets.Clear();
-                _enemies.Clear();
-                _boss = null;
-                _bossSpawned = false;
-                _score = 0;
-                _waveManager.Reset();
-                
-                // Reset wave delay system
-                _waveCleared = false;
-                _waveTimer = 0f;
-                
-                // Reset boss visual effects
-                _bossAppearing = false;
-                _bossFlashTimer = 0f;
-                
-                Console.WriteLine("Game Restarted!");
-            }
-
 
 
             if (gameTime.TotalGameTime.TotalMilliseconds - _lastShotTime > 200)
@@ -328,7 +319,7 @@ namespace BulletHellGame
                     _enemies.RemoveAt(i);
                 }
             }
-            if (!_isGameOver)
+            if (_gameState == GameState.Playing)
             {
                 Rectangle playerBounds = new Rectangle(
                     (int)_playerPosition.X,
@@ -350,7 +341,7 @@ namespace BulletHellGame
 
                         if (_playerLives <= 0)
                         {
-                            _isGameOver = true;
+                            _gameState = GameState.GameOver;
                             Console.WriteLine("GAME OVER!");
                         }
                     }
@@ -370,7 +361,7 @@ namespace BulletHellGame
 
                         if (_playerLives <= 0)
                         {
-                            _isGameOver = true;
+                            _gameState = GameState.GameOver;
                             Console.WriteLine("GAME OVER!");
                         }
                     }
@@ -384,6 +375,38 @@ namespace BulletHellGame
 
         }
 
+
+        private void RestartGame()
+        {
+            // Reset all game entities
+            _playerPosition = new Vector2(400, 500);
+            _enemies.Clear();
+            _bullets.Clear();
+            _enemyBullets.Clear();
+            _bossBullets.Clear();
+            _boss = null;
+            _bossSpawned = false;
+            _score = 0;
+            _playerLives = 3;
+            _waveManager.Reset();
+            
+            // Reset wave delay system
+            _waveCleared = false;
+            _waveTimer = 0f;
+            
+            // Reset boss visual effects
+            _bossAppearing = false;
+            _bossFlashTimer = 0f;
+            
+            // Reset timers
+            _lastShotTime = 0;
+            _lastSpawnTime = 0;
+            _lastEnemyShotTime = 0;
+            
+            _gameState = GameState.Playing;
+            
+            Console.WriteLine("Game Restarted!");
+        }
 
         protected override void Draw(GameTime gameTime)
         {
@@ -453,7 +476,7 @@ namespace BulletHellGame
             // Tampilkan nyawa
             string livesText = $"Lives: {_playerLives}";
             _spriteBatch.DrawString(_font, livesText, new Vector2(10, 40), Color.Red);
-            if (_isGameOver)
+            if (_gameState == GameState.GameOver)
             {
                 string gameOverText = "GAME OVER";
                 Vector2 textSize = _font.MeasureString(gameOverText);
@@ -462,7 +485,17 @@ namespace BulletHellGame
                     (_graphics.PreferredBackBufferHeight - textSize.Y) / 2
                 );
 
-                _spriteBatch.DrawString(_font, gameOverText, position, Color.Yellow);
+                _spriteBatch.DrawString(_font, gameOverText, position, Color.Red);
+                
+                string restartText = "Press R to Restart";
+                Vector2 restartTextSize = _font.MeasureString(restartText);
+                Vector2 restartPosition = new Vector2(
+                    (_graphics.PreferredBackBufferWidth - restartTextSize.X) / 2,
+                    position.Y + 50
+                );
+
+                _spriteBatch.DrawString(_font, restartText, restartPosition, Color.White);
+                return; // Don't render game objects
             }
 
 
