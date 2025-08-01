@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework.Input;
 using System.Collections.Generic;
 using System.IO;
 using System;
+using System.Linq;
 
 
 namespace BulletHellGame
@@ -39,7 +40,6 @@ namespace BulletHellGame
         private Texture2D _enemyBulletTexture;
         private List<EnemyBullet> _enemyBullets = new List<EnemyBullet>();
         private double _lastEnemyShotTime = 0;
-        private int _playerLives = 3;
         
         // Game State
         private GameState _gameState = GameState.Playing;
@@ -66,7 +66,18 @@ namespace BulletHellGame
         private float _bossFlashDuration = 1.5f;
         private Texture2D _pixelTexture;
 
-
+        // Power-Up system
+        private List<PowerUp> _powerUps = new List<PowerUp>();
+        private Texture2D _powerUpExtraLife, _powerUpDoubleBullet, _powerUpShield;
+        private double _powerUpTimer = 0;
+        private bool _isDoubleBullet = false;
+        private double _doubleBulletDuration = 0;
+        private bool _hasShield = false;
+        private double _shieldDuration = 0;
+        
+        // Shop and Player system
+        private ShopManager _shop;
+        private Player _player;
 
 
         public Game1()
@@ -79,6 +90,7 @@ namespace BulletHellGame
         {
             _playerPosition = new Vector2(400, 500); 
             _waveManager = new WaveManager(this);
+            _player = new Player(3);
             base.Initialize();
         }
 
@@ -143,6 +155,19 @@ namespace BulletHellGame
             // Create pixel texture for boss visual effects
             _pixelTexture = new Texture2D(GraphicsDevice, 1, 1);
             _pixelTexture.SetData(new[] { Color.White });
+            
+            // Create power-up textures (placeholder colored squares)
+            _powerUpExtraLife = new Texture2D(GraphicsDevice, 20, 20);
+            _powerUpExtraLife.SetData(new Color[400].Select((_, i) => Color.Red).ToArray());
+            
+            _powerUpDoubleBullet = new Texture2D(GraphicsDevice, 20, 20);
+            _powerUpDoubleBullet.SetData(new Color[400].Select((_, i) => Color.Orange).ToArray());
+            
+            _powerUpShield = new Texture2D(GraphicsDevice, 20, 20);
+            _powerUpShield.SetData(new Color[400].Select((_, i) => Color.Cyan).ToArray());
+            
+            // Initialize shop
+            _shop = new ShopManager(_font);
 
         }
 
@@ -154,6 +179,19 @@ namespace BulletHellGame
                 {
                     RestartGame();
                 }
+                return;
+            }
+
+            // Shop toggle
+            if (Keyboard.GetState().IsKeyDown(Keys.Tab))
+            {
+                _shop.ToggleShop();
+                return; // pause game when shop is open
+            }
+
+            if (_shop.IsOpen)
+            {
+                _shop.Update(gameTime, ref _score, _player);
                 return;
             }
 
@@ -183,12 +221,31 @@ namespace BulletHellGame
 
                 float bulletOffsetY = _bulletTexture.Height * bulletScale;
 
-                Vector2 bulletStart = new Vector2(
-                    playerCenterTop.X - (_bulletTexture.Width * bulletScale * 0.5f),
-                    playerCenterTop.Y - bulletOffsetY
-                );
+                if (_isDoubleBullet || _shop.DoubleBulletPurchased)
+                {
+                    // Double bullet - shoot two bullets side by side
+                    Vector2 bulletStartLeft = new Vector2(
+                        playerCenterTop.X - (_bulletTexture.Width * bulletScale * 0.5f) - 10,
+                        playerCenterTop.Y - bulletOffsetY
+                    );
+                    Vector2 bulletStartRight = new Vector2(
+                        playerCenterTop.X - (_bulletTexture.Width * bulletScale * 0.5f) + 10,
+                        playerCenterTop.Y - bulletOffsetY
+                    );
 
-                _bullets.Add(new Bullet(_bulletTexture, bulletStart));
+                    _bullets.Add(new Bullet(_bulletTexture, bulletStartLeft));
+                    _bullets.Add(new Bullet(_bulletTexture, bulletStartRight));
+                }
+                else
+                {
+                    // Single bullet
+                    Vector2 bulletStart = new Vector2(
+                        playerCenterTop.X - (_bulletTexture.Width * bulletScale * 0.5f),
+                        playerCenterTop.Y - bulletOffsetY
+                    );
+
+                    _bullets.Add(new Bullet(_bulletTexture, bulletStart));
+                }
 
                 _lastShotTime = gameTime.TotalGameTime.TotalMilliseconds;
             }
@@ -247,6 +304,26 @@ namespace BulletHellGame
                 if (_bossFlashTimer >= _bossFlashDuration)
                 {
                     _bossAppearing = false;
+                }
+            }
+            
+            // Power-up spawning
+            _powerUpTimer += gameTime.ElapsedGameTime.TotalSeconds;
+            if (_powerUpTimer > 5) // spawn every 5 seconds
+            {
+                _powerUpTimer = 0;
+                if (_random.NextDouble() < 0.3) // 30% chance spawn
+                {
+                    var type = (PowerUpType)_random.Next(3);
+                    Texture2D tex = type switch
+                    {
+                        PowerUpType.ExtraLife => _powerUpExtraLife,
+                        PowerUpType.DoubleBullet => _powerUpDoubleBullet,
+                        PowerUpType.Shield => _powerUpShield,
+                        _ => _powerUpExtraLife
+                    };
+
+                    _powerUps.Add(new PowerUp(tex, new Vector2(_random.Next(100, 700), -30), type));
                 }
             }
 
@@ -311,6 +388,45 @@ namespace BulletHellGame
                     _bossBullets.RemoveAt(i);
                 }
             }
+            
+            // Update power-ups and check collection
+            for (int i = _powerUps.Count - 1; i >= 0; i--)
+            {
+                var powerUp = _powerUps[i];
+                powerUp.Update(gameTime);
+
+                Rectangle playerBounds = new Rectangle(
+                    (int)_playerPosition.X,
+                    (int)_playerPosition.Y,
+                    (int)(_playerTexture.Width * 0.15f),
+                    (int)(_playerTexture.Height * 0.15f)
+                );
+
+                if (powerUp.Bounds.Intersects(playerBounds))
+                {
+                    powerUp.IsCollected = true;
+                    switch (powerUp.Type)
+                    {
+                        case PowerUpType.ExtraLife:
+                            _player.AddLife();
+                            Console.WriteLine($"Extra Life collected! Lives: {_player.Health}");
+                            break;
+                        case PowerUpType.DoubleBullet:
+                            _isDoubleBullet = true;
+                            _doubleBulletDuration = 5; // active for 5 seconds
+                            Console.WriteLine("Double Bullet activated!");
+                            break;
+                        case PowerUpType.Shield:
+                            _hasShield = true;
+                            _shieldDuration = 5; // active for 5 seconds
+                            Console.WriteLine("Shield activated!");
+                            break;
+                    }
+                }
+
+                if (powerUp.Position.Y > 600 || powerUp.IsCollected)
+                    _powerUps.RemoveAt(i);
+            }
             // Remove enemies that are off screen
             for (int i = _enemies.Count - 1; i >= 0; i--)
             {
@@ -319,6 +435,27 @@ namespace BulletHellGame
                     _enemies.RemoveAt(i);
                 }
             }
+            // Power-up duration management
+            if (_isDoubleBullet)
+            {
+                _doubleBulletDuration -= gameTime.ElapsedGameTime.TotalSeconds;
+                if (_doubleBulletDuration <= 0)
+                {
+                    _isDoubleBullet = false;
+                    Console.WriteLine("Double Bullet deactivated!");
+                }
+            }
+
+            if (_hasShield)
+            {
+                _shieldDuration -= gameTime.ElapsedGameTime.TotalSeconds;
+                if (_shieldDuration <= 0)
+                {
+                    _hasShield = false;
+                    Console.WriteLine("Shield deactivated!");
+                }
+            }
+            
             if (_gameState == GameState.Playing)
             {
                 Rectangle playerBounds = new Rectangle(
@@ -335,14 +472,30 @@ namespace BulletHellGame
                     if (bulletBounds.Intersects(playerBounds))
                     {
                         _enemyBullets.RemoveAt(i);
-                        _playerLives--;
-
-                        Console.WriteLine($"Player hit! Lives remaining: {_playerLives}");
-
-                        if (_playerLives <= 0)
+                        
+                        if (!_hasShield && !_shop.ShieldPurchased)
                         {
-                            _gameState = GameState.GameOver;
-                            Console.WriteLine("GAME OVER!");
+                            _player.TakeDamage();
+                            Console.WriteLine($"Player hit! Lives remaining: {_player.Health}");
+
+                            if (_player.IsDead)
+                            {
+                                _gameState = GameState.GameOver;
+                                Console.WriteLine("GAME OVER!");
+                            }
+                        }
+                        else
+                        {
+                            if (_hasShield)
+                            {
+                                _hasShield = false;
+                                Console.WriteLine("Temporary shield broken!");
+                            }
+                            else if (_shop.ShieldPurchased)
+                            {
+                                _shop.ShieldPurchased = false;
+                                Console.WriteLine("Permanent shield broken!");
+                            }
                         }
                     }
                 }
@@ -355,14 +508,30 @@ namespace BulletHellGame
                     if (bulletBounds.Intersects(playerBounds))
                     {
                         _bossBullets.RemoveAt(i);
-                        _playerLives--;
-
-                        Console.WriteLine($"Player hit by boss! Lives remaining: {_playerLives}");
-
-                        if (_playerLives <= 0)
+                        
+                        if (!_hasShield && !_shop.ShieldPurchased)
                         {
-                            _gameState = GameState.GameOver;
-                            Console.WriteLine("GAME OVER!");
+                            _player.TakeDamage();
+                            Console.WriteLine($"Player hit by boss! Lives remaining: {_player.Health}");
+
+                            if (_player.IsDead)
+                            {
+                                _gameState = GameState.GameOver;
+                                Console.WriteLine("GAME OVER!");
+                            }
+                        }
+                        else
+                        {
+                            if (_hasShield)
+                            {
+                                _hasShield = false;
+                                Console.WriteLine("Temporary shield broken by boss!");
+                            }
+                            else if (_shop.ShieldPurchased)
+                            {
+                                _shop.ShieldPurchased = false;
+                                Console.WriteLine("Permanent shield broken by boss!");
+                            }
                         }
                     }
                 }
@@ -387,7 +556,7 @@ namespace BulletHellGame
             _boss = null;
             _bossSpawned = false;
             _score = 0;
-            _playerLives = 3;
+            _player = new Player(3);
             _waveManager.Reset();
             
             // Reset wave delay system
@@ -402,6 +571,17 @@ namespace BulletHellGame
             _lastShotTime = 0;
             _lastSpawnTime = 0;
             _lastEnemyShotTime = 0;
+            
+            // Reset power-up system
+            _powerUps.Clear();
+            _powerUpTimer = 0;
+            _isDoubleBullet = false;
+            _doubleBulletDuration = 0;
+            _hasShield = false;
+            _shieldDuration = 0;
+            
+            // Reset shop
+            _shop = new ShopManager(_font);
             
             _gameState = GameState.Playing;
             
@@ -435,6 +615,14 @@ namespace BulletHellGame
 
             _spriteBatch.DrawString(_font, $"Score: {_score}", new Vector2(10, 10), Color.White);
             _spriteBatch.DrawString(_font, $"Wave: {_waveManager.CurrentWave}", new Vector2(10, 70), Color.Yellow);
+            _spriteBatch.DrawString(_font, "Press TAB for Shop", new Vector2(10, 150), Color.Gray);
+            
+            // Draw power-up status
+            if (_hasShield || _shop.ShieldPurchased)
+                _spriteBatch.DrawString(_font, "Shield Active", new Vector2(10, 100), Color.Cyan);
+            
+            if (_isDoubleBullet || _shop.DoubleBulletPurchased)
+                _spriteBatch.DrawString(_font, "Double Bullet!", new Vector2(10, 120), Color.Orange);
             
             // Show wave countdown when wave is cleared
             if (_waveCleared)
@@ -472,9 +660,16 @@ namespace BulletHellGame
             
             foreach (var bbullet in _bossBullets)
                 bbullet.Draw(_spriteBatch);
+                
+            // Draw power-ups
+            foreach (var powerUp in _powerUps)
+                powerUp.Draw(_spriteBatch);
+
+            // Draw shop
+            _shop.Draw(_spriteBatch);
 
             // Tampilkan nyawa
-            string livesText = $"Lives: {_playerLives}";
+            string livesText = $"Lives: {_player.Health}";
             _spriteBatch.DrawString(_font, livesText, new Vector2(10, 40), Color.Red);
             if (_gameState == GameState.GameOver)
             {
