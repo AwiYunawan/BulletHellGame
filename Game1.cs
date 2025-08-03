@@ -21,6 +21,11 @@ namespace BulletHellGame
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
 
+        // Pause functionality
+        bool isPaused = false;
+        KeyboardState currentKeyboardState;
+        KeyboardState previousKeyboardState;
+
         private Texture2D _playerTexture;
         private Texture2D _bulletTexture;
 
@@ -173,6 +178,20 @@ namespace BulletHellGame
 
         protected override void Update(GameTime gameTime)
         {
+            previousKeyboardState = currentKeyboardState;
+            currentKeyboardState = Keyboard.GetState();
+
+            // Toggle pause on pressing P
+            if (previousKeyboardState.IsKeyUp(Keys.P) && currentKeyboardState.IsKeyDown(Keys.P))
+            {
+                isPaused = !isPaused;
+            }
+
+            if (isPaused)
+            {
+                return; // Jangan update apa-apa jika sedang pause
+            }
+
             if (_gameState == GameState.GameOver)
             {
                 if (Keyboard.GetState().IsKeyDown(Keys.R))
@@ -593,6 +612,15 @@ namespace BulletHellGame
             GraphicsDevice.Clear(Color.Black);
 
             _spriteBatch.Begin();
+            
+            if (isPaused)
+            {
+                string pauseText = "PAUSED";
+                Vector2 size = _font.MeasureString(pauseText);
+                Vector2 position = new Vector2((_graphics.PreferredBackBufferWidth - size.X) / 2,
+                                               (_graphics.PreferredBackBufferHeight - size.Y) / 2);
+                _spriteBatch.DrawString(_font, pauseText, position, Color.White);
+            }
             
             // Boss visual effect - red flash overlay
             if (_bossAppearing)
