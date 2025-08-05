@@ -14,6 +14,7 @@ namespace BulletHellGame
         // Game State enum
         enum GameState
         {
+            MainMenu,
             Playing,
             GameOver
         }
@@ -47,7 +48,7 @@ namespace BulletHellGame
         private double _lastEnemyShotTime = 0;
         
         // Game State
-        private GameState _gameState = GameState.Playing;
+        private GameState _gameState = GameState.MainMenu;
         
         // Boss properties
         private Texture2D _bossTexture;
@@ -83,6 +84,10 @@ namespace BulletHellGame
         // Shop and Player system
         private ShopManager _shop;
         private Player _player;
+        
+        // Main Menu system
+        private MainMenu _mainMenu;
+        private SpriteFont _titleFont;
 
 
         public Game1()
@@ -127,6 +132,7 @@ namespace BulletHellGame
         {
             Content.RootDirectory = "Content/bin/DesktopGL/Content";
             _font = Content.Load<SpriteFont>("score");
+            _titleFont = Content.Load<SpriteFont>("title");
             _spriteBatch = new SpriteBatch(GraphicsDevice);
 
             using (var stream = new FileStream("Assets/player.png", FileMode.Open))
@@ -173,6 +179,9 @@ namespace BulletHellGame
             
             // Initialize shop
             _shop = new ShopManager(_font);
+            
+            // Initialize main menu
+            _mainMenu = new MainMenu(_font, _titleFont);
 
         }
 
@@ -180,6 +189,20 @@ namespace BulletHellGame
         {
             previousKeyboardState = currentKeyboardState;
             currentKeyboardState = Keyboard.GetState();
+
+            // Handle main menu
+            if (_gameState == GameState.MainMenu)
+            {
+                _mainMenu.Update(gameTime);
+                
+                // Check if menu is no longer active (Start Game was selected)
+                if (!_mainMenu.IsActive)
+                {
+                    _gameState = GameState.Playing;
+                    _mainMenu.IsActive = true; // Reset for next time
+                }
+                return;
+            }
 
             // Toggle pause on pressing P
             if (previousKeyboardState.IsKeyUp(Keys.P) && currentKeyboardState.IsKeyDown(Keys.P))
@@ -197,6 +220,10 @@ namespace BulletHellGame
                 if (Keyboard.GetState().IsKeyDown(Keys.R))
                 {
                     RestartGame();
+                }
+                else if (Keyboard.GetState().IsKeyDown(Keys.M))
+                {
+                    _gameState = GameState.MainMenu;
                 }
                 return;
             }
@@ -602,16 +629,24 @@ namespace BulletHellGame
             // Reset shop
             _shop = new ShopManager(_font);
             
-            _gameState = GameState.Playing;
+            _gameState = GameState.MainMenu;
             
-            Console.WriteLine("Game Restarted!");
+            Console.WriteLine("Returning to Main Menu!");
         }
 
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.Black);
-
             _spriteBatch.Begin();
+            
+            // Handle main menu drawing
+            if (_gameState == GameState.MainMenu)
+            {
+                _mainMenu.Draw(_spriteBatch, GraphicsDevice);
+                _spriteBatch.End();
+                return;
+            }
+            
+            GraphicsDevice.Clear(Color.Black);
             
             if (isPaused)
             {
@@ -718,6 +753,15 @@ namespace BulletHellGame
                 );
 
                 _spriteBatch.DrawString(_font, restartText, restartPosition, Color.White);
+                
+                string menuText = "Press M to Return to Menu";
+                Vector2 menuTextSize = _font.MeasureString(menuText);
+                Vector2 menuPosition = new Vector2(
+                    (_graphics.PreferredBackBufferWidth - menuTextSize.X) / 2,
+                    position.Y + 80
+                );
+
+                _spriteBatch.DrawString(_font, menuText, menuPosition, Color.White);
                 return; // Don't render game objects
             }
 
