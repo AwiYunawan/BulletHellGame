@@ -19,8 +19,6 @@ namespace BulletHellGame
             Circular
         }
         public EnemyFireType FireType;
-        private double fireTimer;
-        private double fireInterval = 1.5;
 
         public Enemy(Texture2D texture, Vector2 position, EnemyFireType fireType)
         {

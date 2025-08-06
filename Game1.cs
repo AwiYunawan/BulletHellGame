@@ -39,7 +39,6 @@ namespace BulletHellGame
         private List<Enemy> _enemies = new List<Enemy>();
         public List<Enemy> Enemies => _enemies;
         private Random _random = new Random();
-        private double _lastSpawnTime = 0;
         private int _score = 0;
         private SpriteFont _font;
 
@@ -56,7 +55,6 @@ namespace BulletHellGame
         public Boss Boss => _boss;
         private Texture2D _hpBarTexture;
         private List<EnemyBullet> _bossBullets = new List<EnemyBullet>();
-        private bool _bossSpawned = false;
         
         // Wave Manager
         private WaveManager _waveManager;
@@ -121,7 +119,6 @@ namespace BulletHellGame
         {
             var bossPos = new Vector2(_graphics.PreferredBackBufferWidth / 2 - _bossTexture.Width / 2, -_bossTexture.Height);
             _boss = new Boss(_bossTexture, bossPos);
-            _bossSpawned = true;
             
             // Trigger boss visual effect
             _bossAppearing = true;
@@ -600,7 +597,6 @@ namespace BulletHellGame
             _enemyBullets.Clear();
             _bossBullets.Clear();
             _boss = null;
-            _bossSpawned = false;
             _score = 0;
             _player = new Player(3);
             _waveManager.Reset();
@@ -615,7 +611,6 @@ namespace BulletHellGame
             
             // Reset timers
             _lastShotTime = 0;
-            _lastSpawnTime = 0;
             _lastEnemyShotTime = 0;
             
             // Reset power-up system
