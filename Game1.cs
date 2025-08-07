@@ -91,7 +91,13 @@ namespace BulletHellGame
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
+            Content.RootDirectory = "Content";
             IsMouseVisible = true;
+            
+            // Set window properties
+            _graphics.PreferredBackBufferWidth = 800;
+            _graphics.PreferredBackBufferHeight = 600;
+            _graphics.ApplyChanges();
         }
 
         protected override void Initialize()
@@ -127,7 +133,6 @@ namespace BulletHellGame
 
         protected override void LoadContent()
         {
-            Content.RootDirectory = "Content/bin/DesktopGL/Content";
             _font = Content.Load<SpriteFont>("score");
             _titleFont = Content.Load<SpriteFont>("title");
             _spriteBatch = new SpriteBatch(GraphicsDevice);
